@@ -3,12 +3,14 @@ import logger from './utils/logger'
 const id = chrome.runtime.id
 
 const ClassName = {
+  message: `${id}-message`,
   button: `${id}-button`,
-  message: `${id}-message`
+  control: `${id}-control`,
+  visible: `${id}-visible`
 }
 
-let disabled
-let settings
+let disabled = false
+let settings = null
 const lines = []
 
 const isMyName = (authorName) => {
@@ -248,6 +250,42 @@ const flow = (node) => {
   }
 }
 
+const observeChat = () => {
+  const items = document.querySelector('#items.yt-live-chat-item-list-renderer')
+  if (!items) {
+    return
+  }
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      const nodes = Array.from(mutation.addedNodes)
+      nodes.forEach((node) => {
+        flow(node)
+      })
+    })
+  })
+  observer.observe(items, { childList: true })
+}
+
+const addVideoEventListener = () => {
+  const video = parent.document.querySelector('.video-stream.html5-main-video')
+  if (!video) {
+    return
+  }
+  const callback = (e) => {
+    lines
+      .reduce(
+        (carry, messages) => [
+          ...carry,
+          ...messages.map((message) => message.animation)
+        ],
+        []
+      )
+      .forEach((animation) => animation[e.type]())
+  }
+  video.addEventListener('pause', callback)
+  video.addEventListener('play', callback)
+}
+
 const clearMessages = () => {
   Array.from(parent.document.querySelectorAll(`.${ClassName.message}`)).forEach(
     (element) => {
@@ -292,6 +330,95 @@ const removeControlButton = () => {
   button.remove()
 }
 
+const setupInputForm = () => {
+  const leftControl = parent.document.querySelector(
+    '.ytp-chrome-bottom .ytp-chrome-controls .ytp-left-controls'
+  )
+  const rightControl = parent.document.querySelector(
+    '.ytp-chrome-bottom .ytp-chrome-controls .ytp-right-controls'
+  )
+  if (!leftControl || !rightControl) {
+    return
+  }
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  path.setAttribute('d', 'M2.01 21L23 12 2.01 3 2 10l15 2-15 2z')
+  path.setAttribute('fill', '#fff')
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '-8 -8 40 40')
+  svg.setAttribute('width', '100%')
+  svg.setAttribute('height', '100%')
+  svg.append(path)
+
+  const button = document.createElement('button')
+  button.classList.add('ytp-button')
+  button.onclick = () => {
+    //
+  }
+  button.append(svg)
+
+  const label = document.createElement('div')
+  label.setAttribute(
+    'style',
+    `
+    margin-left: 8px;
+  `
+  )
+  label.textContent = '0/200'
+
+  const textfield = document.createElement('input')
+  textfield.setAttribute('type', 'text')
+  textfield.setAttribute('placeholder', 'Message')
+  textfield.setAttribute('maxlength', '200')
+  textfield.setAttribute(
+    'style',
+    `
+    flex: 1;
+    box-sizing: border-box;
+    width: 100%;
+    height: 66%;
+    border: none;
+    font-size: 100%;
+    padding: 4px;
+    outline: none;
+  `
+  )
+  textfield.onkeydown = (e) => {
+    e.stopPropagation()
+  }
+  textfield.onkeyup = (e) => {
+    const length = e.target.value.length
+    label.textContent = `${length}/200`
+  }
+
+  const width = `calc(100% - ${leftControl.offsetWidth +
+    rightControl.offsetWidth +
+    1}px)`
+
+  const control = document.createElement('div')
+  control.classList.add(ClassName.control)
+  control.setAttribute(
+    'style',
+    `
+    float: left;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 0 8px;
+    height: 100%;
+    width: ${width};
+  `
+  )
+  control.append(textfield)
+  control.append(label)
+  control.append(button)
+
+  rightControl.parentNode.insertBefore(control, rightControl)
+
+  parent.document.body.classList.add(ClassName.visible)
+}
+
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   logger.log('chrome.runtime.onMessage', message, sender, sendResponse)
 
@@ -310,47 +437,18 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   }
 })
 
-logger.log('content script loaded')
-
 document.addEventListener('DOMContentLoaded', async () => {
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      const nodes = Array.from(mutation.addedNodes)
-      nodes.forEach((node) => {
-        flow(node)
-      })
-    })
-  })
-  const items = document.querySelector('#items.yt-live-chat-item-list-renderer')
-  observer.observe(items, { childList: true })
+  chrome.runtime.sendMessage({ id: 'contentLoaded' })
 
-  const callback = (e) => {
-    lines
-      .reduce(
-        (carry, messages) => [
-          ...carry,
-          ...messages.map((message) => message.animation)
-        ],
-        []
-      )
-      .forEach((animation) => animation[e.type]())
-  }
-  const video = parent.document.querySelector('.video-stream.html5-main-video')
-  video.addEventListener('pause', callback)
-  video.addEventListener('play', callback)
+  observeChat()
+  addVideoEventListener()
+  setupControlButton()
+  setupInputForm()
 
   window.addEventListener('unload', () => {
     clearMessages()
-
-    video.removeEventListener('pause', callback)
-    video.removeEventListener('play', callback)
-
-    observer.disconnect()
-
     removeControlButton()
   })
-
-  setupControlButton()
-
-  chrome.runtime.sendMessage({ id: 'contentLoaded' })
 })
+
+logger.log('content script loaded')

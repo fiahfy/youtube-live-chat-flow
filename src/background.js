@@ -7,6 +7,22 @@ import './assets/icon16.png'
 import './assets/icon48.png'
 import './assets/icon128.png'
 
+const id = chrome.runtime.id
+
+const ClassName = {
+  visible: `${id}-visible`
+}
+
+const code = `
+.${ClassName.visible} .html5-video-player .ytp-chrome-bottom {
+  opacity: 1!important;
+}
+.${ClassName.visible} .html5-video-player .ytp-gradient-bottom {
+  display: block!important;
+  opacity: 1!important;
+}
+`
+
 let initialDisabled = false
 const disabledTabs = {}
 
@@ -16,6 +32,7 @@ const setIcon = (tabId) => {
 }
 
 const contentLoaded = async (tabId) => {
+  chrome.tabs.insertCSS(tabId, { code })
   const disabled = initialDisabled
   disabledTabs[tabId] = disabled
   setIcon(tabId)

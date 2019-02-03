@@ -330,7 +330,7 @@ const removeControlButton = () => {
   button.remove()
 }
 
-const setupInputForm = () => {
+const setupInputControl = () => {
   const leftControl = parent.document.querySelector(
     '.ytp-chrome-bottom .ytp-chrome-controls .ytp-left-controls'
   )
@@ -351,13 +351,6 @@ const setupInputForm = () => {
   svg.setAttribute('height', '100%')
   svg.append(path)
 
-  const button = document.createElement('button')
-  button.classList.add('ytp-button')
-  button.onclick = () => {
-    //
-  }
-  button.append(svg)
-
   const label = document.createElement('div')
   label.setAttribute(
     'style',
@@ -366,6 +359,35 @@ const setupInputForm = () => {
   `
   )
   label.textContent = '0/200'
+
+  const updateInput = (text) => {
+    const length = text.length
+    label.textContent = `${length}/200`
+    const renderer = document.querySelector(
+      'yt-live-chat-text-input-field-renderer'
+    )
+    const input = document.querySelector(
+      'div#input.yt-live-chat-text-input-field-renderer'
+    )
+    const ytButton = document.querySelector('#send-button yt-button-renderer')
+    const ytIcon = document.querySelector('#send-button yt-icon-button')
+    const button = document.querySelector('#send-button button#button')
+    if (!renderer || !input || !ytButton || !ytIcon || !button) {
+      return
+    }
+    if (length) {
+      renderer.setAttribute('has-text', '')
+      ytButton.removeAttribute('disabled')
+      ytIcon.removeAttribute('disabled')
+      button.removeAttribute('disabled')
+    } else {
+      renderer.removeAttribute('has-text')
+      ytButton.setAttribute('disabled', '')
+      ytIcon.setAttribute('disabled', '')
+      button.setAttribute('disabled', '')
+    }
+    input.textContent = text
+  }
 
   const textfield = document.createElement('input')
   textfield.setAttribute('type', 'text')
@@ -386,11 +408,31 @@ const setupInputForm = () => {
   )
   textfield.onkeydown = (e) => {
     e.stopPropagation()
+    // const input = document.querySelector(
+    //   'div#input.yt-live-chat-text-input-field-renderer'
+    // )
+    // input.dispatchEvent(e)
   }
   textfield.onkeyup = (e) => {
-    const length = e.target.value.length
-    label.textContent = `${length}/200`
+    updateInput(e.target.value)
   }
+
+  const button = document.createElement('button')
+  button.classList.add('ytp-button')
+  button.onclick = () => {
+    const button = document.querySelector('#send-button button#button')
+    logger.log(button)
+
+    // button.click()
+    // textfield.value = ''
+    // updateInput('')
+
+    const input = document.querySelector(
+      'div#input.yt-live-chat-text-input-field-renderer'
+    )
+    input.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 13 }))
+  }
+  button.append(svg)
 
   const width = `calc(100% - ${leftControl.offsetWidth +
     rightControl.offsetWidth +
@@ -419,6 +461,11 @@ const setupInputForm = () => {
   parent.document.body.classList.add(ClassName.visible)
 }
 
+const removeInputControl = () => {
+  const button = parent.document.querySelector(`.${ClassName.control}`)
+  button.remove()
+}
+
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   logger.log('chrome.runtime.onMessage', message, sender, sendResponse)
 
@@ -443,10 +490,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   observeChat()
   addVideoEventListener()
   setupControlButton()
-  setupInputForm()
+  setupInputControl()
 
   window.addEventListener('unload', () => {
     clearMessages()
+    removeInputControl()
     removeControlButton()
   })
 })

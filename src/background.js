@@ -15,11 +15,11 @@ const ClassName = {
 
 const code = `
 .${ClassName.visible} .html5-video-player .ytp-chrome-bottom {
-  opacity: 1!important;
+  // opacity: 1!important;
 }
 .${ClassName.visible} .html5-video-player .ytp-gradient-bottom {
   display: block!important;
-  opacity: 1!important;
+  // opacity: 1!important;
 }
 `
 

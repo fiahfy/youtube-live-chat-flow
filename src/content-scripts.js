@@ -3,10 +3,10 @@ import logger from './utils/logger'
 const id = chrome.runtime.id
 
 const ClassName = {
+  focused: `${id}-focused`,
   message: `${id}-message`,
   button: `${id}-button`,
-  control: `${id}-control`,
-  visible: `${id}-visible`
+  controls: `${id}-controls`
 }
 
 let disabled = false
@@ -164,7 +164,7 @@ const flow = (node) => {
   }
 
   const video = parent.document.querySelector('.video-stream.html5-main-video')
-  if (video.paused) {
+  if (video && video.paused) {
     return
   }
 
@@ -175,6 +175,9 @@ const flow = (node) => {
   }
 
   const container = parent.document.querySelector('.html5-video-container')
+  if (!container) {
+    return
+  }
   container.appendChild(element)
 
   const millis = settings.speed * 1000
@@ -295,6 +298,11 @@ const clearMessages = () => {
 }
 
 const setupControlButton = () => {
+  const controls = parent.document.querySelector('.ytp-right-controls')
+  if (!controls) {
+    return
+  }
+
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
   path.setAttribute(
     'd',
@@ -311,13 +319,19 @@ const setupControlButton = () => {
   const button = document.createElement('button')
   button.classList.add(ClassName.button)
   button.classList.add('ytp-button')
+  button.style.transition = 'opacity 1s'
+  button.style.opacity = 0
   button.onclick = () => {
     chrome.runtime.sendMessage({ id: 'disabledToggled' })
   }
   button.append(svg)
 
-  const controls = parent.document.querySelector('.ytp-right-controls')
   controls.prepend(button)
+
+  // fade in...
+  setTimeout(() => {
+    button.style.opacity = 1
+  }, 0)
 }
 
 const updateControlButton = (disabled) => {
@@ -331,138 +345,59 @@ const removeControlButton = () => {
 }
 
 const setupInputControl = () => {
-  const leftControl = parent.document.querySelector(
+  const leftControls = parent.document.querySelector(
     '.ytp-chrome-bottom .ytp-chrome-controls .ytp-left-controls'
   )
-  const rightControl = parent.document.querySelector(
+  const rightControls = parent.document.querySelector(
     '.ytp-chrome-bottom .ytp-chrome-controls .ytp-right-controls'
   )
-  if (!leftControl || !rightControl) {
+  if (!leftControls || !rightControls) {
     return
   }
 
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-  path.setAttribute('d', 'M2.01 21L23 12 2.01 3 2 10l15 2-15 2z')
-  path.setAttribute('fill', '#fff')
-
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  svg.setAttribute('viewBox', '-8 -8 40 40')
-  svg.setAttribute('width', '100%')
-  svg.setAttribute('height', '100%')
-  svg.append(path)
-
-  const label = document.createElement('div')
-  label.setAttribute(
-    'style',
-    `
-    margin-left: 8px;
-  `
-  )
-  label.textContent = '0/200'
-
-  const updateInput = (text) => {
-    const length = text.length
-    label.textContent = `${length}/200`
-    const renderer = document.querySelector(
-      'yt-live-chat-text-input-field-renderer'
-    )
-    const input = document.querySelector(
-      'div#input.yt-live-chat-text-input-field-renderer'
-    )
-    const ytButton = document.querySelector('#send-button yt-button-renderer')
-    const ytIcon = document.querySelector('#send-button yt-icon-button')
-    const button = document.querySelector('#send-button button#button')
-    if (!renderer || !input || !ytButton || !ytIcon || !button) {
-      return
-    }
-    if (length) {
-      renderer.setAttribute('has-text', '')
-      ytButton.removeAttribute('disabled')
-      ytIcon.removeAttribute('disabled')
-      button.removeAttribute('disabled')
-    } else {
-      renderer.removeAttribute('has-text')
-      ytButton.setAttribute('disabled', '')
-      ytIcon.setAttribute('disabled', '')
-      button.setAttribute('disabled', '')
-    }
-    input.textContent = text
+  const top = document.querySelector('div#top')
+  const buttons = document.querySelector('div#message-buttons')
+  if (!top || !buttons) {
+    return
   }
-
-  const textfield = document.createElement('input')
-  textfield.setAttribute('type', 'text')
-  textfield.setAttribute('placeholder', 'Message')
-  textfield.setAttribute('maxlength', '200')
-  textfield.setAttribute(
-    'style',
-    `
-    flex: 1;
-    box-sizing: border-box;
-    width: 100%;
-    height: 66%;
-    border: none;
-    font-size: 100%;
-    padding: 4px;
-    outline: none;
-  `
-  )
-  textfield.onkeydown = (e) => {
+  const input = top.querySelector('div#input')
+  if (!input) {
+    return
+  }
+  input.addEventListener('keydown', (e) => {
     e.stopPropagation()
-    // const input = document.querySelector(
-    //   'div#input.yt-live-chat-text-input-field-renderer'
-    // )
-    // input.dispatchEvent(e)
-  }
-  textfield.onkeyup = (e) => {
-    updateInput(e.target.value)
-  }
+    if (e.keyCode === 27) {
+      e.target.blur()
+    }
+  })
+  input.addEventListener('focus', () => {
+    parent.document.body.classList.add(ClassName.focused)
+  })
+  input.addEventListener('blur', () => {
+    parent.document.body.classList.remove(ClassName.focused)
+  })
+  // TODO: put description "Input Form is Moved on Bottom Controls"
 
-  const button = document.createElement('button')
-  button.classList.add('ytp-button')
-  button.onclick = () => {
-    const button = document.querySelector('#send-button button#button')
-    logger.log(button)
+  const controls = document.createElement('div')
+  controls.classList.add(ClassName.controls)
+  controls.style.transition = 'opacity 1s'
+  controls.style.opacity = 0
+  // TODO: adjust size if controls size changed
+  controls.style.left = `${leftControls.offsetWidth}px`
+  controls.style.right = `${rightControls.offsetWidth}px`
+  controls.append(top)
+  controls.append(buttons)
 
-    // button.click()
-    // textfield.value = ''
-    // updateInput('')
+  rightControls.parentNode.insertBefore(controls, rightControls)
 
-    const input = document.querySelector(
-      'div#input.yt-live-chat-text-input-field-renderer'
-    )
-    input.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 13 }))
-  }
-  button.append(svg)
-
-  const width = `calc(100% - ${leftControl.offsetWidth +
-    rightControl.offsetWidth +
-    1}px)`
-
-  const control = document.createElement('div')
-  control.classList.add(ClassName.control)
-  control.setAttribute(
-    'style',
-    `
-    float: left;
-    display: flex;
-    align-items: center;
-    box-sizing: border-box;
-    padding: 0 8px;
-    height: 100%;
-    width: ${width};
-  `
-  )
-  control.append(textfield)
-  control.append(label)
-  control.append(button)
-
-  rightControl.parentNode.insertBefore(control, rightControl)
-
-  parent.document.body.classList.add(ClassName.visible)
+  // fade in...
+  setTimeout(() => {
+    controls.style.opacity = 1
+  }, 0)
 }
 
 const removeInputControl = () => {
-  const button = parent.document.querySelector(`.${ClassName.control}`)
+  const button = parent.document.querySelector(`.${ClassName.controls}`)
   button.remove()
 }
 

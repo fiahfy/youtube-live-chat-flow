@@ -1,10 +1,18 @@
 {
   "manifest_version": 2,
+  "name": "YouTube Live Chat Flow",
+  "version": "0.0.40",
+  "description": "Chrome Extension for Flowing Chat Messages on YouTube Live",
   "icons": {
     "128": "icon.png"
   },
+  "page_action": {
+    "default_icon": "icon.png",
+    "default_popup": "popup.html"
+  },
   "background": {
-    "scripts": ["background.js"]
+    "scripts": ["background.js"],
+    "persistent": false
   },
   "content_scripts": [
     {
@@ -14,18 +22,12 @@
       "js": ["content-script.js"]
     }
   ],
-  "page_action": {
-    "default_icon": "icon.png",
-    "default_popup": "popup.html"
-  },
+  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+  "homepage_url": "https://github.com/fiahfy/youtube-live-chat-flow",
+  "options_page": "options.html",
   "options_ui": {
     "page": "options.html",
     "open_in_tab": false
   },
-  "permissions": [
-    "storage",
-    "tabs",
-    "https://www.youtube.com/*"
-  ],
-  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
+  "permissions": ["storage", "tabs", "https://www.youtube.com/*"]
 }
